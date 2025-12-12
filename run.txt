@@ -10,3 +10,5 @@ gcc -O2 -pthread -o c_engine \
   ./c_engine /tmp/cengine.sock
 
   python3 main.py
+
+  enter http://127.0.0.1:9000 on your browser

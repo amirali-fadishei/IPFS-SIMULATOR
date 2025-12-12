@@ -13,6 +13,7 @@
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <limits.h>
+#include <unistd.h>
 #include "./blake3/blake3.h"
 #include <jansson.h>
 
@@ -662,6 +663,59 @@ static int block_paths_from_hash(const char *hash_hex, char dir_aa[PATH_MAX], ch
 	return 0;
 }
 
+static int get_refcount_path(const char *hash_hex, char path_buf[PATH_MAX]) {
+	char dir_aa[PATH_MAX], dir_aabb[PATH_MAX], final_path[PATH_MAX], tmp_path[PATH_MAX];
+	if (block_paths_from_hash(hash_hex, dir_aa, dir_aabb, final_path, tmp_path) < 0) return -1;
+	if (snprintf(path_buf, PATH_MAX, "%s.ref", final_path) >= PATH_MAX) {
+		errno = ENAMETOOLONG;
+		return -1;
+	}
+	return 0;
+}
+
+static int update_refcount(const char *hash_hex, int delta) {
+	char ref_path[PATH_MAX];
+	if (get_refcount_path(hash_hex, ref_path) < 0) return -1;
+
+	int fd = open(ref_path, O_RDWR | O_CREAT, 0644);
+	if (fd < 0) return -1;
+
+	if (lockf(fd, F_LOCK, 0) < 0) {
+		close(fd);
+		return -1;
+	}
+
+	long long count = 0;
+	char buf[32] = {0};
+
+	if (read_n(fd, buf, sizeof(buf) - 1) > 0) {
+		count = atoll(buf);
+	}
+
+	count += delta;
+	if (count < 0) count = 0;
+
+	if (lseek(fd, 0, SEEK_SET) < 0) goto fail;
+	int n = snprintf(buf, sizeof(buf), "%lld", count);
+	if (n < 0 || write_all(fd, buf, n) < 0) goto fail;
+	if (ftruncate(fd, n) < 0) goto fail;
+	if (fsync(fd) < 0) goto fail;
+
+	if (lockf(fd, F_ULOCK, 0) < 0) { 
+		perror("[ENGINE] WARNING: Failed to unlock refcount file"); 
+	}
+
+	close(fd);
+	return 0;
+
+fail:
+	if (lockf(fd, F_ULOCK, 0) < 0) { 
+		perror("[ENGINE] WARNING: Failed to unlock refcount file on error path");
+	}
+	close(fd);
+	return -1;
+}
+
 static int store_block(const char *hash_hex, const uint8_t *data, size_t len) {
 	char dir_aa[PATH_MAX], dir_aabb[PATH_MAX], final_path[PATH_MAX], tmp_path[PATH_MAX];
 	if (block_paths_from_hash(hash_hex, dir_aa, dir_aabb, final_path, tmp_path) < 0) return -1;
@@ -673,7 +727,7 @@ static int store_block(const char *hash_hex, const uint8_t *data, size_t len) {
 	int fd = open(final_path, O_RDONLY | O_CLOEXEC);
 	if (fd >= 0) {
 		close(fd);
-		return 0;
+		return update_refcount(hash_hex, 1);
 	}
 
 	int tfd = open(tmp_path, O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC, 0644);
@@ -694,13 +748,16 @@ static int store_block(const char *hash_hex, const uint8_t *data, size_t len) {
 	if (link(tmp_path, final_path) < 0) {
 		if (errno == EEXIST) {
 			unlink(tmp_path);
-			return 0;
+			return update_refcount(hash_hex, 1);
 		}
 		unlink(tmp_path);
 		return -1;
 	}
 
 	unlink(tmp_path);
+	if (update_refcount(hash_hex, 1) < 0) {
+    	fprintf(stderr, "[ENGINE] WARNING: Failed to initialize refcount for %s\n", hash_hex);
+    }
 	(void)fsync_dir(dir_aabb);
 	return 0;
 }
@@ -890,6 +947,9 @@ static void* handle_connection(void *arg) {
 			memcpy(up.mf.filename, payload, n);
 			up.mf.filename[n] = '\0';
 
+			printf("[INFO] OP_UPLOAD_START received. Filename: %s\n", up.mf.filename);
+            fflush(stdout);
+
 			next_index = 0;
 			recv_chunks = 0;
 
@@ -1001,6 +1061,9 @@ static void* handle_connection(void *arg) {
 			char cid[129];
 			memcpy(cid, payload, len);
 			cid[len] = '\0';
+
+			printf("[INFO] OP_DOWNLOAD_START received. CID: %s\n", cid);
+            fflush(stdout);
 
 			manifest_t mf;
 			if (load_manifest(cid, &mf) < 0) {
