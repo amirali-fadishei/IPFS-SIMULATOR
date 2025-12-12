@@ -1,10 +1,12 @@
-
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import urlparse, parse_qs
 import socket
 import struct
 import json
+import os
 
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UI_DIR = os.path.join(BASE_DIR, "ui")
 ENGINE_SOCK = "/tmp/cengine.sock"
 
 OP_UPLOAD_START = 0x01
@@ -12,9 +14,9 @@ OP_UPLOAD_CHUNK = 0x02
 OP_UPLOAD_FINISH = 0x03
 OP_UPLOAD_DONE  = 0x81
 
-OP_DOWNLOAD_START = 0x11
-OP_DOWNLOAD_CHUNK = 0x91
-OP_DOWNLOAD_DONE  = 0x92
+OP_DOWNLOAD_START = 0x10
+OP_DOWNLOAD_CHUNK = 0x90
+OP_DOWNLOAD_DONE  = 0x91
 
 def frame(op, payload: bytes):
     return struct.pack(">BI", op, len(payload)) + payload
@@ -94,9 +96,32 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+        
+    def serve_file(self, rel_path, content_type):
+        try:
+            full_path = os.path.join(UI_DIR, rel_path)
+            with open(full_path, "rb") as f:
+                data = f.read()
+            self.send_response(200)
+            self.send_header("Content-Type", content_type)
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+        except FileNotFoundError:
+            self.send_error(404, "Not Found")
 
     def do_GET(self):
         parsed = urlparse(self.path)
+        
+        if parsed.path == "/" or parsed.path == "/ui" or parsed.path == "/ui/":
+            return self.serve_file("index.html", "text/html; charset=utf-8")
+
+        if parsed.path == "/ui/style.css":
+            return self.serve_file("style.css", "text/css; charset=utf-8")
+
+        if parsed.path == "/ui/script.js":
+            return self.serve_file("script.js", "application/javascript; charset=utf-8")
+
         if parsed.path != "/download":
             self.send_error(404, "Not Found")
             return

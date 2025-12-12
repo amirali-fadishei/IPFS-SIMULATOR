@@ -1,35 +1,113 @@
-<!DOCTYPE html>
-<html lang="fa" dir="rtl">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OS Project - IPFS Gateway</title>
-    <style>
-        body { font-family: Tahoma, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
-        h1 { text-align: center; color: #333; }
-        .upload-section, .result-section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
-        input[type="file"] { margin-bottom: 10px; }
-        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
-        button:hover { background-color: #0056b3; }
-        #result-cid { font-weight: bold; color: #28a745; word-wrap: break-word; }
-        #status-message { margin-top: 10px; font-weight: bold; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IPFS Gateway</title>
+  <link rel="stylesheet" href="../ui/style.css" />
 </head>
 <body>
-    <h1>IPFS Upload Gateway</h1>
-    <div class="upload-section">
-        <h2>آپلود فایل</h2>
-        <input type="file" id="fileInput">
-        <button onclick="handleUpload()">آپلود به Engine</button>
-        <div id="status-message"></div>
-    </div>
+  <main class="shell">
+    <header class="top">
+      <div class="brand">
+        <div class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+            <path d="M12 2 3 6.5v11L12 22l9-4.5v-11L12 2Z"/>
+            <path d="M3 6.5 12 11l9-4.5"/>
+            <path d="M12 11v11"/>
+          </svg>
+        </div>
+        <div>
+          <h1>IPFS Gateway</h1>
+        </div>
+      </div>
+    </header>
 
-    <div class="result-section">
-        <h2>نتیجه آپلود</h2>
-        <p>شناسه محتوا (CID) دریافت شده:</p>
-        <code id="result-cid">منتظر آپلود...</code>
-    </div>
+    <section class="grid">
+      <section class="card" aria-label="Upload file">
+        <header class="card__head">
+          <h2>
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <path d="M17 8l-5-5-5 5"/>
+                <path d="M12 3v12"/>
+              </svg>
+            </span>
+            Upload
+          </h2>
+          <p class="muted">Drag & drop a file, or browse your device.</p>
+        </header>
 
-    <script src="/script.js"></script> 
+        <div class="drop" id="dropZone" role="button" tabindex="0" aria-describedby="dropHint">
+          <input type="file" id="fileInput" class="sr-only" />
+          <div class="drop__inner">
+            <div class="drop__badge" aria-hidden="true">+</div>
+            <div>
+              <div class="drop__title">Drop a file here</div>
+              <div class="drop__sub" id="dropHint">or click to choose a file</div>
+            </div>
+          </div>
+
+          <div class="drop__meta">
+            <span id="fileMeta" class="file-meta">No file selected</span>
+            <span class="hint">Tip: you can also press <kbd>Enter</kbd> to open picker</span>
+          </div>
+        </div>
+
+        <div class="row">
+          <button class="btn" id="uploadBtn" type="button" disabled>
+            <span>Upload</span>
+          </button>
+          <span id="upLoader" class="spinner" aria-hidden="true" style="display:none"></span>
+        </div>
+
+        <div id="uploadResult" class="result" role="status" aria-live="polite">
+          <div class="result__label">Upload complete • CID</div>
+          <div class="result__cid" id="cidDisplay"></div>
+          <div class="result__actions">
+            <button class="btn btn--ghost" id="copyBtn" type="button">Copy CID</button>
+            <button class="btn btn--ghost" id="fillDownloadBtn" type="button">Use for Download</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" aria-label="Download file">
+        <header class="card__head">
+          <h2>
+            <span class="icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <path d="M7 10l5 5 5-5"/>
+                <path d="M12 15V3"/>
+              </svg>
+            </span>
+            Download
+          </h2>
+          <p class="muted">Paste a CID and fetch the file from your gateway.</p>
+        </header>
+
+        <label class="label" for="cidInput">CID</label>
+        <div class="field">
+          <input
+            type="text"
+            id="cidInput"
+            placeholder="bafy…"
+            autocomplete="off"
+            spellcheck="false"
+            inputmode="text"
+          />
+          <button class="btn" type="button" id="dlBtn">Download</button>
+          <span id="dlLoader" class="spinner" aria-hidden="true" style="display:none"></span>
+        </div>
+
+        <div id="dlError" class="callout callout--error" role="alert" style="display:none"></div>
+      </section>
+    </section>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
+  </main>
+
+  <script src="../ui/script.js"></script>
 </body>
 </html>
