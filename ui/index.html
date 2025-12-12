@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OS Project - IPFS Gateway</title>
+    <style>
+        body { font-family: Tahoma, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+        h1 { text-align: center; color: #333; }
+        .upload-section, .result-section { border: 1px solid #ccc; padding: 15px; margin-bottom: 20px; border-radius: 5px; }
+        input[type="file"] { margin-bottom: 10px; }
+        button { padding: 10px 20px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background-color: #0056b3; }
+        #result-cid { font-weight: bold; color: #28a745; word-wrap: break-word; }
+        #status-message { margin-top: 10px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>IPFS Upload Gateway</h1>
+    <div class="upload-section">
+        <h2>آپلود فایل</h2>
+        <input type="file" id="fileInput">
+        <button onclick="handleUpload()">آپلود به Engine</button>
+        <div id="status-message"></div>
+    </div>
+
+    <div class="result-section">
+        <h2>نتیجه آپلود</h2>
+        <p>شناسه محتوا (CID) دریافت شده:</p>
+        <code id="result-cid">منتظر آپلود...</code>
+    </div>
+
+    <script src="/script.js"></script> 
+</body>
+</html>
